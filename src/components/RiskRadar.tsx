@@ -37,10 +37,19 @@ const RiskRadar = () => {
         </ResponsiveContainer>
       </div>
       
-      <div className="mt-4 flex justify-center space-x-6 text-sm">
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-brand-red mr-2"></div> High Attention</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-brand-amber mr-2"></div> Review</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-brand-green mr-2"></div> Informational</div>
+      <div className="mt-4 flex justify-center space-x-6 text-sm" role="list" aria-label="Risk Legend">
+        <div className="flex items-center" role="listitem">
+          <div className="w-3 h-3 rounded-full bg-brand-red mr-2" aria-hidden="true"></div> 
+          <span>High Attention <span className="sr-only">(Red)</span></span>
+        </div>
+        <div className="flex items-center" role="listitem">
+          <div className="w-3 h-3 rounded-full bg-brand-amber mr-2" aria-hidden="true"></div> 
+          <span>Review <span className="sr-only">(Amber)</span></span>
+        </div>
+        <div className="flex items-center" role="listitem">
+          <div className="w-3 h-3 rounded-full bg-brand-green mr-2" aria-hidden="true"></div> 
+          <span>Informational <span className="sr-only">(Green)</span></span>
+        </div>
       </div>
     </div>
   );
