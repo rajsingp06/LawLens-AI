@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Send, Bot, FileText, Info } from 'lucide-react';
+import { lawLensApi } from '../services/api';
 
 interface Message {
   id: number;
@@ -14,6 +15,7 @@ const AskLawLens = () => {
     { id: 1, role: 'bot', text: 'Hello! I\'ve analyzed your document. What would you like to know about it?', source: null }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const suggestedQs = [
     "What are my main obligations?",
@@ -21,25 +23,48 @@ const AskLawLens = () => {
     "Explain the payment clause simply."
   ];
 
-  const handleSend = (text: string) => {
+  // Cleanup abort controller on unmount (Efficiency)
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  const handleSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
     
-    // Add user message
     setMessages(prev => [...prev, { id: Date.now(), role: 'user', text, source: null }]);
     setQuery('');
     setIsTyping(true);
 
-    // Mock AI Response
-    setTimeout(() => {
-      setIsTyping(false);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    try {
+      // Connect to Real API Backend
+      const answer = await lawLensApi.askQuestion(text, "MOCK_CONTEXT", abortControllerRef.current.signal);
+      
       setMessages(prev => [...prev, { 
         id: Date.now(), 
         role: 'bot', 
-        text: 'Based on the document, either party can terminate this agreement by providing a 30-day written notice prior to the end of the current term.', 
-        source: 'Page 5 • Section 9 (Termination)' 
+        text: answer, 
+        source: 'Retrieved via GenAI' 
       }]);
-    }, 1500);
-  };
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        setMessages(prev => [...prev, { 
+          id: Date.now(), 
+          role: 'bot', 
+          text: 'Sorry, I encountered a secure error while processing your request.', 
+          source: null 
+        }]);
+      }
+    } finally {
+      setIsTyping(false);
+    }
+  }, []);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[600px]">

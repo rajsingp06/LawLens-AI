@@ -1,44 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, FileText, CheckCircle2, Download, Languages, ExternalLink } from 'lucide-react';
 import RiskRadar from '../components/RiskRadar';
 import LegalTimeline from '../components/LegalTimeline';
 import AskLawLens from '../components/AskLawLens';
 import { cn } from '../components/Layout';
-
-const clauses = [
-  {
-    id: 1,
-    title: 'Automatic Renewal',
-    original: 'The agreement shall automatically renew for successive periods of one (1) year each unless either party provides written notice of its intent not to renew at least thirty (30) days prior to the expiration of the then-current term.',
-    simple: 'This means the agreement will continue automatically for another year unless you tell them in writing 30 days before it ends.',
-    importance: 'attention', // 'high', 'attention', 'info'
-    page: 7,
-    section: '12.1'
-  },
-  {
-    id: 2,
-    title: 'Early Termination Penalty',
-    original: 'In the event of termination by the Client prior to the expiration of the Initial Term, Client shall be liable for a penalty equivalent to fifty percent (50%) of the remaining contract value.',
-    simple: 'If you cancel early, you have to pay 50% of whatever is left on the contract.',
-    importance: 'high',
-    page: 5,
-    section: '9.2'
-  },
-  {
-    id: 3,
-    title: 'Governing Law',
-    original: 'This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without giving effect to any choice or conflict of law provision or rule.',
-    simple: 'Any legal disputes will be handled using Delaware laws.',
-    importance: 'info',
-    page: 11,
-    section: '15.4'
-  }
-];
+import { lawLensApi } from '../services/api';
 
 const AnalysisPage = () => {
   const [activeTab, setActiveTab] = useState('insights');
   const [activeClause, setActiveClause] = useState<number | null>(null);
+  
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+      
+      try {
+        const data = await lawLensApi.analyzeDocument(null, abortControllerRef.current.signal);
+        setAnalysisData(data);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') console.error(err);
+      }
+    };
+    fetchData();
+
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
 
   const tabs = [
     { id: 'insights', name: 'Key Insights' },
@@ -83,7 +76,7 @@ const AnalysisPage = () => {
             )}>
               <h3 className="text-sm text-slate-800 font-bold mb-2">Section {activeClause === 1 ? '12.1' : activeClause === 2 ? '9.2' : 'X.X'}</h3>
               <div className="text-slate-800 text-xs leading-relaxed">
-                {activeClause ? clauses.find(c => c.id === activeClause)?.original : 'Click a clause on the right to highlight it in the document...'}
+                {activeClause ? analysisData?.clauses?.find((c: any) => c.id === activeClause)?.original : 'Click a clause on the right to highlight it in the document...'}
               </div>
             </div>
             
@@ -151,7 +144,7 @@ const AnalysisPage = () => {
                 <p className="text-sm text-slate-500">Click any clause to highlight it in the original document.</p>
               </div>
               
-              {clauses.map((clause) => (
+              {analysisData?.clauses?.map((clause: any) => (
                 <div 
                   key={clause.id}
                   onClick={() => setActiveClause(clause.id)}

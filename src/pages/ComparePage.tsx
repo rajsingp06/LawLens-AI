@@ -1,43 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SplitSquareHorizontal, Upload, FileText, ArrowRightLeft, Info, Plus, Minus } from 'lucide-react';
 import { cn } from '../components/Layout';
+import { lawLensApi } from '../services/api';
+
+interface Difference {
+  id: number;
+  title: string;
+  type: 'added' | 'removed' | 'changed';
+  docA: string | null;
+  docB: string | null;
+  explanation: string;
+  whyMatters: string;
+}
 
 const ComparePage = () => {
   const [isComparing, setIsComparing] = useState(false);
+  const [differences, setDifferences] = useState<Difference[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const simulateComparison = () => {
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  const simulateComparison = async () => {
     setIsComparing(true);
-  };
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
 
-  const differences = [
-    {
-      id: 1,
-      title: 'Termination Notice Period',
-      type: 'changed',
-      docA: 'Either party may terminate this agreement with thirty (30) days written notice.',
-      docB: 'Either party may terminate this agreement with ninety (90) days written notice.',
-      explanation: 'Contract B requires a longer notice period (90 days vs 30 days).',
-      whyMatters: 'This reduces your flexibility to exit the agreement quickly if needed.'
-    },
-    {
-      id: 2,
-      title: 'Liability Cap',
-      type: 'added',
-      docA: null,
-      docB: 'Provider\'s total liability under this agreement shall not exceed the total fees paid in the trailing 12 months.',
-      explanation: 'Contract B introduces a strict cap on how much money you can recover in a dispute.',
-      whyMatters: 'If they cause damages exceeding your annual fees, you cannot recover the full amount.'
-    },
-    {
-      id: 3,
-      title: 'Data Sharing',
-      type: 'removed',
-      docA: 'Provider may share anonymized usage data with third-party affiliates for marketing purposes.',
-      docB: null,
-      explanation: 'Contract B removes the right for the provider to share your data with third parties.',
-      whyMatters: 'This is favorable to you and improves your data privacy.'
+    try {
+      const data = await lawLensApi.compareDocuments(abortControllerRef.current.signal);
+      setDifferences(data.differences);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error("Comparison failed", err);
+      }
     }
-  ];
+  };
 
   return (
     <div className="max-w-6xl mx-auto py-6">
